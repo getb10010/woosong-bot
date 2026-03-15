@@ -4,7 +4,6 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from api.routers import auth, chat, dm, qa, lost_found, admin, health
 from api.websocket.chat import router as ws_router
-from db.database import init_db, async_engine, Base
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -31,10 +30,24 @@ app.include_router(ws_router)
 
 @app.on_event("startup")
 async def startup():
-    await init_db()
-    logger.info("Database initialized")
+    try:
+        from db.database import async_engine, Base
+        from db.models.user import User
+        from db.models.schedule import Schedule
+        from db.models.deadline import Deadline
+        from db.models.exam import Exam
+        from db.models.message import Message
+        from db.models.report import Report
+        from db.models.anon_dm import AnonDMThread, AnonDMMessage
+        from db.models.qa import QAPost, QAAnswer, QAVote
+        from db.models.lost_found import LostFound
+        from db.models.admin_log import AdminLog
+        from db.models.blocked_word import BlockedWord
 
-    from db.models import *  # noqa - барлық моделдерді импорт
-    async with async_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    logger.info("All tables created successfully")
+        async with async_engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        logger.info("Database tables created successfully")
+    except Exception as e:
+        logger.error(f"Database init error: {e}")
+
+    logger.info("API started")
